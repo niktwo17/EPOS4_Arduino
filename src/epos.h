@@ -2,10 +2,9 @@
 #define __EPOS_H
 
 #include <Arduino.h>
-#include <common_data.h>
 
 
-#define SerialEpcos  Serial2 // 
+#define SerialEpos  Serial2 // 
 #define ReceiveTimeOut 20 // Maximum for waiting answer from EPOS4 in milli second
 #define MaxLenFrame 10  // max number of words in frame
 
@@ -23,8 +22,7 @@
 
 #define OPSPEED 7900
 
-extern aladdinData stateData;
-extern aladdinDataError eD;
+
 
 class epos
 {
@@ -34,7 +32,7 @@ public:
     void init();
     bool doHoming();
     void steeringLoop(uint8_t state, float autRad, float manRad);
-    void getCurrentPosition();
+    float getCurrentPosition();
     
 
 private:
@@ -48,7 +46,7 @@ bool WriteObject(word Index, byte SubIndex,word* pArray);
 bool ReadObject(word Index, byte SubIndex);
 void print_rcv_data();
 word ReadStatusWord();
-inline void SerialEpcosStuffing(byte BYTE);
+inline void SerialEposStuffing(byte BYTE);
 
 
 //data needed

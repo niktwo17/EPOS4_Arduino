@@ -10,7 +10,7 @@ epos::~epos(){}
 void epos::init()
 {
   //Serial.begin(115200);
-  SerialEpcos.begin(115200, SERIAL_8N1, RXD2, TXD2);
+  SerialEpos.begin(115200, SERIAL_8N1, RXD2, TXD2);
   delay(200);
 
   data[0] = 0x80;
@@ -82,8 +82,9 @@ else
 }
 
 
-void epos::getCurrentPosition()
+float epos::getCurrentPosition()
 {
+  float returnVal = 0;
 
 /*
 if(ReadObject(0x6064, 0) == true)
@@ -110,8 +111,6 @@ incRead = lsb + (msb <<8) + (lsb2 <<16) + (msb2 << 24);
 */
 if(ReadObject(0x6064,0) == true)
     {
-        stateData.isSteeringOk = true;
-        eD.SteeringTimeOutCounter = 0;
         int32_t lsb = DataRead[4];
         int32_t msb = DataRead[5];
         int32_t lsb2 = DataRead[6];
@@ -119,7 +118,7 @@ if(ReadObject(0x6064,0) == true)
         incRead = lsb + (msb <<8) + (lsb2 <<16) + (msb2 << 24);
         /// for maxon different directions
         //incRead = incRead*(-1);
-        stateData.steeringAngleRightNow = inctoRad(incRead);
+        returnVal = inctoRad(incRead);
         //stateData.steeringAngleRightNow = 0.5;
         //Debug("incRead");
         //Debugln(incRead);
@@ -131,9 +130,7 @@ if(ReadObject(0x6064,0) == true)
     }
     else
     {
-        stateData.isSteeringOk = false;
-        eD.MotorControlTimeOutCounter ++;
-        //stateData.steeringAngleRightNow = 1.0;
+      return -10;
     }
 
 //Serial.print("incRead");
@@ -147,10 +144,11 @@ if(ReadObject(0x6064,0) == true)
 //Serial.println(msb, HEX);
 
 //what we get from the maxon is stored in DataRead[]...
+return returnVal;
 }
 
 /**
- *This functions actually turns us
+ *This function invokes the control of the steering based on commanded cases.
  */
 void epos::steeringLoop(uint8_t state, float autRad, float manRad)
 {
@@ -188,6 +186,11 @@ else
   data[1] = 0x0000;
 }
 
+
+/**
+ * A turning maximum of Pi/2 (90 degrees) to left and right dimension is considered.
+ * 0 inc refers middle (neutral position)
+ */ 
 float epos::inctoRad(int32_t inc)
 {
     float calcRad = 0;
@@ -196,6 +199,11 @@ float epos::inctoRad(int32_t inc)
     calcRad = calcRad/1000;
     return calcRad;
 }
+
+/**
+ * A turning maximum of Pi/2 (90 degrees) to left and right dimension is considered.
+ * 0 inc refers middle (neutral position)
+ */ 
 int32_t epos::RadtoInc(float Rad)
 {
     int32_t calcInc = 0;
@@ -236,10 +244,10 @@ word epos::CalcFieldCRC(word* pDataArray, word numberOfints)
   return CRC;
 }
 
-inline void epos::SerialEpcosStuffing(byte BYTE)
+inline void epos::SerialEposStuffing(byte BYTE)
 {
-  if (BYTE==0x90) SerialEpcos.write(BYTE);
-  SerialEpcos.write(BYTE);
+  if (BYTE==0x90) SerialEpos.write(BYTE);
+  SerialEpos.write(BYTE);
 }
 
 void epos::SendFrame(byte OpCode,word* pDataArray,byte numberOfwords)
@@ -253,17 +261,17 @@ void epos::SendFrame(byte OpCode,word* pDataArray,byte numberOfwords)
   }
   pDataCRC[numberOfwords+1]=0x0000;
   CRC=CalcFieldCRC(pDataCRC, (word)(numberOfwords+2));
-  SerialEpcos.write(0x90);  // DLE=Data Link Escape 
-  SerialEpcos.write(0x02);  // STX=Start of Text
-  SerialEpcosStuffing(OpCode);
-  SerialEpcosStuffing(numberOfwords);
+  SerialEpos.write(0x90);  // DLE=Data Link Escape 
+  SerialEpos.write(0x02);  // STX=Start of Text
+  SerialEposStuffing(OpCode);
+  SerialEposStuffing(numberOfwords);
   for (int i=0; i<numberOfwords ; i++)
   {
-    SerialEpcosStuffing(lowByte(pDataArray[i]));
-    SerialEpcosStuffing(highByte(pDataArray[i]));
+    SerialEposStuffing(lowByte(pDataArray[i]));
+    SerialEposStuffing(highByte(pDataArray[i]));
   }
-  SerialEpcosStuffing(lowByte(CRC));
-  SerialEpcosStuffing(highByte(CRC));
+  SerialEposStuffing(lowByte(CRC));
+  SerialEposStuffing(highByte(CRC));
 }
 
 bool epos::WriteObject(word Index, byte SubIndex,word* pArray)
@@ -313,7 +321,7 @@ void epos::print_rcv_data()
 
 bool epos::ReadFrame()
 {
-  incomingByte = 0;   // for incoming SerialEpcos data
+  incomingByte = 0;   // for incoming SerialEpos data
   unsigned long timer=millis();
   read_st=RX_DLE;
   word pDataCRC[MaxLenFrame+2];
@@ -323,7 +331,7 @@ bool epos::ReadFrame()
   while ((read_st!=RX_DONE) and (millis()-timer < ReceiveTimeOut))
   {
     
-    if (SerialEpcos.available() > 0)
+    if (SerialEpos.available() > 0)
     {
       /*
       if(readDelayDone == false)
@@ -332,7 +340,7 @@ bool epos::ReadFrame()
         readDelayDone = true;
       }
       */
-      incomingByte = SerialEpcos.read();
+      incomingByte = SerialEpos.read();
       /*
       Serial.print("Read: ");
       Serial.println(incomingByte, HEX); 
