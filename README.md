@@ -11,4 +11,4 @@ Known limitations
 - Not suitable for real time applications, with necessary delay submitting and reading values takes roughly 20 ms 
 - Checksum for reading specific objects is not working (deactivated for now)
 - Statusword is not used as it could be, no double checking if commands were really received and executed by EPOS, only for homing checking is done
-- Homing is implemted with long delay, could be optimized with statusword control if needed
+- Homing is implemented with long delay, could be optimized with statusword control if needed
